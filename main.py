@@ -153,6 +153,55 @@ def simulate_queue_each(num_channels, queue_size, arrival_rate, service_mean, se
     return idle_time / arrival_times[-1], targets, last_ckpt
 
 
+def simulate_queue_avg(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests=100):
+    print("Инициализация системы...")
+    interarrival_times = generate_interarrival_times(arrival_rate, num_requests)
+    service_times = generate_service_times(service_mean, service_variance, num_requests)
+    Ind = 0
+    
+    arrival_times = np.cumsum(interarrival_times)
+    
+    servers = np.zeros(num_channels)  # Время окончания работы серверов
+    queue = []
+    
+    
+    for i in range(num_requests):
+        current_time = arrival_times[i]
+        # print(f"[{current_time:.2f}] Обрабатываем заявку {i+1} из {num_requests}")
+
+        out_flag = 0
+        while not out_flag:
+            t = min(current_time, *servers)
+
+            if t != min(*servers):
+                if len(queue) < queue_size:
+                    queue.append(service_times[i])
+                    # print(f"[{current_time:.2f}] Заявка {i+1} добавлена в очередь. Очередь: {len(queue)}")
+                    out_flag = 1
+                else:
+                    # print(f"[{current_time:.2f}] Заявка {i+1} потеряна! Очередь заполнена.")
+                    out_flag = 1
+            else:
+                if len(queue) == 0:
+                    if np.all(servers < current_time):
+                        Ind += 1
+                        # print(f"[{current_time:.2f}] Время простоя увеличено на {(current_time - max(*servers)):.2f}")
+                    j = min([k for k in range(len(servers)) if servers[k] < current_time])
+                    servers[j] = current_time + service_times[i]
+                    out_flag = 1
+                    # print(f"[{current_time:.2f}] Заявка {i+1} отправлена на сервер {j+1}")
+
+                else:
+                    j = np.argmin(servers)
+                    service_time_tmp = queue.pop(0)
+                    servers[j] += service_time_tmp
+                    # print(f"[{current_time:.2f}] Заявка из очереди отправлена на сервер {j+1}")
+
+    
+    print("Моделирование завершено.")
+
+    return Ind/num_requests
+
 
 
 
@@ -226,29 +275,29 @@ def main():
     arrival_rate = 0.2
     service_mean = 1
     service_variance = 2
-    num_requests = 10
+    num_requests = 10000
     N = num_requests
 
     # prob_idle = simulate_queue_total(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
 
-    prob_idle, targets, ckpt = simulate_queue_each(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
-    targets = np.array(targets)
-    E = np.mean(targets)
-    E2 = np.mean(targets**2)
-    D = E2 - E**2
+    # prob_idle, targets, ckpt = simulate_queue_each(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
+
+    E = simulate_queue_avg(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
+    
+    D = E - E**2
     N_new = int ( (z_est)**2 * D/ (eps ** 2) )
     
     print('ITERATIONS: ', N)
     while N < N_new:
         num_requests = N_new - N
-        prob_idle, targets, ckpt = simulate_queue_each(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
-        targets = np.array(targets)
-        E = np.mean(targets)
-        E2 = np.mean(targets**2)
-        D = E2 - E**2
+        E_new = simulate_queue_avg(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
+        
+        E = (E*N + E_new*(N_new-N)) / N_new
+        D = E - E**2
+
         N = N_new
         N_new = int ( (z_est)**2 * D/ (eps ** 2) )
-
+        print('ITERATIONS: ', N)
     print('N FOUND: ', N)
     print('ИСКОМАЯ ВЕЛИЧИНА: ', E)
 
