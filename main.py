@@ -6,12 +6,18 @@ import pandas as pd
 import os
 
 def generate_interarrival_times(rate, num_requests):
-    return np.random.exponential(1/rate, num_requests)
+    gamma = np.random.uniform(0, 1, num_requests)
+    return (-1 / rate) * np.log(gamma)
 
 def generate_service_times(mean, variance, num_requests):
     sigma = np.sqrt(variance)
     mu = mean
-    return np.random.lognormal(mu, sigma, num_requests)
+    
+    U = np.random.uniform(0, 1, (num_requests, 12))
+    Z = np.sqrt(12) * (np.sum(U - 0.5, axis=1))/np.sqrt(12)
+    
+    X = np.exp(mu + sigma * Z)
+    return X
 
 def simulate_queue_total(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests=10000):
     print("Инициализация системы...")
