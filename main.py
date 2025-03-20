@@ -270,7 +270,7 @@ def normal_ppf_clt(alpha, sample_size=10_000, n_clt=12, tol=1e-3):
 def main():
     eps = 0.05
     alpha = 0.9
-    z_est = normal_ppf_clt(alpha, sample_size=50000, n_clt=30, tol=1e-4)
+    z_est = -1 * normal_ppf_clt((1 - alpha) / 2, sample_size=50000, n_clt=30, tol=1e-4)
     print(f"Квантиль уровня alpha={alpha:.3f} ≈ {z_est:.4f}")
 
     
@@ -281,7 +281,7 @@ def main():
     arrival_rate = 0.2
     service_mean = 1
     service_variance = 2
-    num_requests = 10000
+    num_requests = 50
     N = num_requests
 
     # prob_idle = simulate_queue_total(num_channels, queue_size, arrival_rate, service_mean, service_variance, num_requests)
